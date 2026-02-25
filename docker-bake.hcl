@@ -26,6 +26,10 @@ variable "build_target" {
   default = ""
 }
 
+variable "fbgemm_inc" {
+  default = ""
+}
+
 variable "export_path" {
   default = "/build"
 }
@@ -39,7 +43,7 @@ variable "zendnn_git_repo" {
 }
 
 variable "zendnn_git_ref" {
-  default = "master"
+  default = "main"
 }
 
 variable "zendnn_cmake_generator" {
@@ -71,6 +75,7 @@ target "artifact" {
     CMAKE_CONFIGURE_ARGS = "${cmake_configure_args}"
     CMAKE_BUILD_ARGS    = "${cmake_build_args}"
     BUILD_TARGET        = "${build_target}"
+    FBGEMM_INC          = "${fbgemm_inc}"
     EXPORT_PATH         = "${export_path}"
     ENABLE_EXTERNAL_ZENDNN = "${enable_external_zendnn}"
     ZENDNN_GIT_REPO     = "${zendnn_git_repo}"
@@ -92,5 +97,13 @@ target "zen4-o3" {
   inherits = ["artifact"]
   args = {
     CMAKE_CONFIGURE_ARGS = "-DCMAKE_BUILD_TYPE=Release -DCMAKE_C_FLAGS='-O3 -march=znver4' -DCMAKE_CXX_FLAGS='-O3 -march=znver4'"
+  }
+}
+
+target "llama-zendnn-zen4" {
+  inherits = ["artifact"]
+  args = {
+    ENABLE_EXTERNAL_ZENDNN = "true"
+    CMAKE_CONFIGURE_ARGS   = "-DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=ON -DLLAMA_BUILD_EXAMPLES=OFF -DGGML_AVX512=ON -DGGML_AVX512_VNNI=ON -DGGML_ZENDNN=ON -DZENDNN_ROOT=/opt/zendnn -DCMAKE_LIBRARY_PATH='/opt/zendnn/lib;/opt/zendnn/zendnnl/lib' -DCMAKE_C_FLAGS='-O3 -march=znver4 -mprefer-vector-width=256 -fPIC -fno-asynchronous-unwind-tables -I$FBGEMM_INC' -DCMAKE_CXX_FLAGS='-O3 -march=znver4 -mprefer-vector-width=256'"
   }
 }

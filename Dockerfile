@@ -15,7 +15,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
 FROM base AS zendnn-builder
 
 ARG ZENDNN_GIT_REPO=https://github.com/amd/ZenDNN.git
-ARG ZENDNN_GIT_REF=master
+ARG ZENDNN_GIT_REF=main
 ARG ZENDNN_SOURCE_DIR=/zendnn-src
 ARG ZENDNN_BUILD_DIR=/zendnn-build
 ARG ZENDNN_INSTALL_DIR=/opt/zendnn
@@ -50,6 +50,7 @@ ARG EXPORT_PATH=/build
 ARG ENABLE_EXTERNAL_ZENDNN=false
 ARG ZENDNN_INSTALL_DIR=/opt/zendnn
 ARG CCACHE_DIR=/ccache
+ARG FBGEMM_INC=""
 
 COPY --from=zendnn-builder ${ZENDNN_INSTALL_DIR} ${ZENDNN_INSTALL_DIR}
 COPY --from=zendnn-builder /zendnn-src /external-zendnn-src
@@ -75,14 +76,16 @@ RUN if [[ "${ENABLE_EXTERNAL_ZENDNN}" == "true" ]]; then \
 
 ENV CMAKE_PREFIX_PATH=${ZENDNN_INSTALL_DIR}:${CMAKE_PREFIX_PATH}
 ENV ZENDNNROOT=${ZENDNN_INSTALL_DIR}
+ENV ZENDNN_ROOT=${ZENDNN_INSTALL_DIR}
 ENV CCACHE_DIR=${CCACHE_DIR}
+ENV FBGEMM_INC=${FBGEMM_INC}
 ENV CCACHE_MAXSIZE=5G
 
 RUN --mount=type=cache,target=${CCACHE_DIR},sharing=locked \
-    cmake -S "${SOURCE_DIR}" -B "${BUILD_DIR}" -G "${CMAKE_GENERATOR}" \
+    eval "cmake -S \"${SOURCE_DIR}\" -B \"${BUILD_DIR}\" -G \"${CMAKE_GENERATOR}\" \
       -DCMAKE_C_COMPILER_LAUNCHER=ccache \
       -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
-      ${CMAKE_CONFIGURE_ARGS} && \
+      ${CMAKE_CONFIGURE_ARGS}" && \
     cmake --build "${BUILD_DIR}" ${BUILD_TARGET:+--target "${BUILD_TARGET}"} ${CMAKE_BUILD_ARGS} && \
     ccache --show-stats && \
     mkdir -p /ccache-layer && cp -a "${CCACHE_DIR}"/. /ccache-layer/
