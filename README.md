@@ -30,10 +30,15 @@ docker buildx bake native-o3 --set native-o3.args.GIT_REPO=https://github.com/yo
 
 # Zen 4 tuned
 docker buildx bake zen4-o3 --set zen4-o3.args.GIT_REPO=https://github.com/your-org/your-project.git
+
+# Llama.cpp + external ZenDNN + Zen 4 tuning
+docker buildx bake llama-zendnn-zen4 \
+  --set llama-zendnn-zen4.args.GIT_REPO=https://github.com/ggerganov/llama.cpp.git \
+  --set llama-zendnn-zen4.args.GIT_REF=master \
+  --set llama-zendnn-zen4.args.FBGEMM_INC=/path/to/fbgemm/include
 ```
 
-
-## Build llama.cpp with a specific external ZenDNN revision
+## Build llama.cpp with a specific external ZenDNN revision (default branch: `main`)
 
 You can precompile ZenDNN from `https://github.com/amd/ZenDNN` in a dedicated stage and then wire it into the `llama.cpp` build.
 
@@ -47,7 +52,7 @@ docker buildx bake artifact \
 ```
 
 What this does:
-- Builds ZenDNN in a separate Docker stage (`zendnn-builder`) at `ZENDNN_GIT_REF`.
+- Builds ZenDNN in a separate Docker stage (`zendnn-builder`) at `ZENDNN_GIT_REF` (defaults to `main`).
 - Installs ZenDNN to `/opt/zendnn` and exposes it through `CMAKE_PREFIX_PATH` + `ZENDNNROOT`.
 - Replaces the bundled llama.cpp ZenDNN checkout (`ggml/third_party/ZenDNN` or `third_party/ZenDNN`) when `ENABLE_EXTERNAL_ZENDNN=true`.
 - Uses `ccache` in the main project build (`CMAKE_*_COMPILER_LAUNCHER=ccache`) to accelerate repeat builds.
