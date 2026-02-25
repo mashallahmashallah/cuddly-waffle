@@ -27,7 +27,18 @@ WORKDIR /
 ADD --keep-git-dir=true ${ZENDNN_GIT_REPO} ${ZENDNN_SOURCE_DIR}
 
 WORKDIR ${ZENDNN_SOURCE_DIR}
-RUN git checkout --detach "${ZENDNN_GIT_REF}" && git submodule update --init --recursive
+RUN set -eux; \
+    if git checkout --detach "${ZENDNN_GIT_REF}"; then \
+      :; \
+    elif [[ "${ZENDNN_GIT_REF}" == "main" ]]; then \
+      git checkout --detach master; \
+    elif [[ "${ZENDNN_GIT_REF}" == "master" ]]; then \
+      git checkout --detach main; \
+    else \
+      echo "error: unable to checkout ZenDNN ref '${ZENDNN_GIT_REF}'" >&2; \
+      exit 1; \
+    fi && \
+    git submodule update --init --recursive
 
 RUN cmake -S "${ZENDNN_SOURCE_DIR}" -B "${ZENDNN_BUILD_DIR}" \
     -G "${ZENDNN_CMAKE_GENERATOR}" \
