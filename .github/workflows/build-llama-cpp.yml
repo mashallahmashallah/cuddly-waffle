@@ -1,4 +1,4 @@
-name: Build llama.cpp artifact with Docker Buildx
+name: Build llama.cpp
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
       zendnn_ref:
         description: "ZenDNN git ref (tag, branch, or commit SHA)"
         required: false
-        default: "master"
+        default: "main"
       cmake_configure_args:
         description: "Additional CMake configure args"
         required: false
