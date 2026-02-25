@@ -1,5 +1,5 @@
 variable "base_image" {
-  default = "gcc:15.3"
+  default = "gcc:15.2"
 }
 
 variable "git_repo" {
