@@ -1,0 +1,64 @@
+name: Build llama.cpp artifact with Docker Buildx
+
+on:
+  workflow_dispatch:
+    inputs:
+      llama_ref:
+        description: "llama.cpp git ref (tag, branch, or commit SHA)"
+        required: true
+        default: "master"
+      cmake_configure_args:
+        description: "Additional CMake configure args"
+        required: false
+        default: "-DCMAKE_BUILD_TYPE=Release"
+      cmake_build_args:
+        description: "Additional CMake build args"
+        required: false
+        default: "--parallel"
+      export_path:
+        description: "Path inside builder image to export"
+        required: false
+        default: "/build"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout this repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build llama.cpp artifact image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: artifact
+          tags: local/llama-cpp-artifact:${{ github.run_id }}
+          load: true
+          build-args: |
+            GIT_REPO=https://github.com/ggerganov/llama.cpp.git
+            GIT_REF=${{ inputs.llama_ref }}
+            CMAKE_CONFIGURE_ARGS=${{ inputs.cmake_configure_args }}
+            CMAKE_BUILD_ARGS=${{ inputs.cmake_build_args }}
+            EXPORT_PATH=${{ inputs.export_path }}
+
+      - name: Extract build output from artifact image
+        run: |
+          set -euxo pipefail
+          container_id="$(docker create local/llama-cpp-artifact:${{ github.run_id }})"
+          mkdir -p artifact-out
+          docker cp "${container_id}:/" artifact-out/
+          docker rm "${container_id}"
+
+      - name: Upload build output artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: llama-cpp-build-${{ inputs.llama_ref }}
+          path: artifact-out/
+          if-no-files-found: error
