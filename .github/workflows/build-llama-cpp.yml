@@ -38,7 +38,6 @@ jobs:
         run: |
           set -euo pipefail
           normalized_ref="$(printf '%s' "${{ inputs.llama_ref }}" | tr '/:@ ' '----' | tr -cd '[:alnum:]._-')"
-          printf 'image_tag=%s\n' "llama-cpp-artifact-${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
           printf 'artifact_name=%s\n' "llama-cpp-build-${normalized_ref}" >> "$GITHUB_OUTPUT"
 
       - name: Build llama.cpp artifact image
@@ -47,22 +46,13 @@ jobs:
           context: .
           file: ./Dockerfile
           target: artifact
-          tags: local/${{ steps.names.outputs.image_tag }}
-          load: true
+          outputs: type=local,dest=artifact-out
           build-args: |
             GIT_REPO=https://github.com/ggerganov/llama.cpp.git
             GIT_REF=${{ inputs.llama_ref }}
             CMAKE_CONFIGURE_ARGS=${{ inputs.cmake_configure_args }}
             CMAKE_BUILD_ARGS=${{ inputs.cmake_build_args }}
             EXPORT_PATH=${{ inputs.export_path }}
-
-      - name: Extract build output from artifact image
-        run: |
-          set -euxo pipefail
-          container_id="$(docker create local/${{ steps.names.outputs.image_tag }})"
-          mkdir -p artifact-out
-          docker cp "${container_id}:/" artifact-out/
-          docker rm "${container_id}"
 
       - name: Upload build output artifact
         uses: actions/upload-artifact@v4
