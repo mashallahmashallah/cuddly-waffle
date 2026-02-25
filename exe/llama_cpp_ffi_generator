@@ -1,0 +1,24 @@
+#!/usr/bin/env ruby
+# frozen_string_literal: true
+
+require 'optparse'
+require_relative '../lib/llama_cpp_ffi_generator'
+
+options = LlamaCppFfiGenerator::Config.new.to_h
+
+parser = OptionParser.new do |opts|
+  opts.banner = 'Usage: llama_cpp_ffi_generator [options]'
+
+  opts.on('--tag TAG', "llama.cpp release tag (default: #{LlamaCppFfiGenerator::DEFAULT_TAG})") { |v| options[:tag] = v }
+  opts.on('--workdir PATH', 'Download/unpack work directory') { |v| options[:workdir] = v }
+  opts.on('--output PATH', 'Generated Ruby file path') { |v| options[:output] = v }
+  opts.on('--module-name NAME', 'Ruby module name in generated bindings') { |v| options[:module_name] = v }
+  opts.on('--library-name NAME', 'Native library name for ffi_lib') { |v| options[:library_name] = v }
+  opts.on('--header-path PATH', 'Header path inside release archive') { |v| options[:header_path] = v }
+end
+
+parser.parse!(ARGV)
+
+config = LlamaCppFfiGenerator::Config.new(**options)
+output = LlamaCppFfiGenerator::Generator.new(config).call
+puts "Generated bindings: #{output}"
