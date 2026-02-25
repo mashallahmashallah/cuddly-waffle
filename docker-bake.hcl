@@ -30,6 +30,30 @@ variable "export_path" {
   default = "/build"
 }
 
+variable "enable_external_zendnn" {
+  default = "false"
+}
+
+variable "zendnn_git_repo" {
+  default = "https://github.com/amd/ZenDNN.git"
+}
+
+variable "zendnn_git_ref" {
+  default = "master"
+}
+
+variable "zendnn_cmake_generator" {
+  default = "Ninja"
+}
+
+variable "zendnn_cmake_configure_args" {
+  default = "-DCMAKE_BUILD_TYPE=Release"
+}
+
+variable "zendnn_cmake_build_args" {
+  default = "--parallel"
+}
+
 group "default" {
   targets = ["artifact"]
 }
@@ -48,6 +72,12 @@ target "artifact" {
     CMAKE_BUILD_ARGS    = "${cmake_build_args}"
     BUILD_TARGET        = "${build_target}"
     EXPORT_PATH         = "${export_path}"
+    ENABLE_EXTERNAL_ZENDNN = "${enable_external_zendnn}"
+    ZENDNN_GIT_REPO     = "${zendnn_git_repo}"
+    ZENDNN_GIT_REF      = "${zendnn_git_ref}"
+    ZENDNN_CMAKE_GENERATOR = "${zendnn_cmake_generator}"
+    ZENDNN_CMAKE_CONFIGURE_ARGS = "${zendnn_cmake_configure_args}"
+    ZENDNN_CMAKE_BUILD_ARGS = "${zendnn_cmake_build_args}"
   }
 }
 

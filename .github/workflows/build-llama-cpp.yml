@@ -7,6 +7,10 @@ on:
         description: "llama.cpp git ref (tag, branch, or commit SHA)"
         required: true
         default: "master"
+      zendnn_ref:
+        description: "ZenDNN git ref (tag, branch, or commit SHA)"
+        required: false
+        default: "master"
       cmake_configure_args:
         description: "Additional CMake configure args"
         required: false
@@ -25,10 +29,18 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
+      packages: write
 
     steps:
       - name: Checkout this repository
         uses: actions/checkout@v4
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -39,6 +51,7 @@ jobs:
           set -euo pipefail
           normalized_ref="$(printf '%s' "${{ inputs.llama_ref }}" | tr '/:@ ' '----' | tr -cd '[:alnum:]._-')"
           printf 'artifact_name=%s\n' "llama-cpp-build-${normalized_ref}" >> "$GITHUB_OUTPUT"
+          printf 'cache_ref=%s\n' "ghcr.io/${{ github.repository }}/buildcache:llama-cpp" >> "$GITHUB_OUTPUT"
 
       - name: Build llama.cpp artifact image
         uses: docker/build-push-action@v6
@@ -47,9 +60,15 @@ jobs:
           file: ./Dockerfile
           target: artifact
           outputs: type=local,dest=artifact-out
+          cache-from: |
+            type=registry,ref=${{ steps.names.outputs.cache_ref }}
+          cache-to: |
+            type=registry,ref=${{ steps.names.outputs.cache_ref }},mode=max
           build-args: |
             GIT_REPO=https://github.com/ggerganov/llama.cpp.git
             GIT_REF=${{ inputs.llama_ref }}
+            ENABLE_EXTERNAL_ZENDNN=true
+            ZENDNN_GIT_REF=${{ inputs.zendnn_ref }}
             CMAKE_CONFIGURE_ARGS=${{ inputs.cmake_configure_args }}
             CMAKE_BUILD_ARGS=${{ inputs.cmake_build_args }}
             EXPORT_PATH=${{ inputs.export_path }}
