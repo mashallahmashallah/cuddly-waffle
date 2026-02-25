@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  prepare-stories260k-artifact:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout llama.cpp
+        uses: actions/checkout@v4
+        with:
+          repository: ggml-org/llama.cpp
+          path: llama.cpp
+
+      - name: Build llama.cpp tools
+        run: |
+          cmake -S llama.cpp -B build -DBUILD_SHARED_LIBS=ON
+          cmake --build build --config Release -j "$(nproc)"
+          if [ -x build/bin/llama-cli ] && [ ! -x build/bin/llama-completion ]; then
+            ln -s llama-cli build/bin/llama-completion
+          fi
+
+      - name: Build stories260K GGUF artifact
+        run: |
+          cd build
+          wget -q https://huggingface.co/karpathy/tinyllamas/resolve/main/stories260K/tok512.bin -O tok512.bin
+          wget -q https://huggingface.co/karpathy/tinyllamas/resolve/main/stories260K/stories260K.bin -O stories260K.bin
+          ./bin/llama-convert-llama2c-to-ggml \
+            --copy-vocab-from-model ./tok512.bin \
+            --llama2c-model ./stories260K.bin \
+            --llama2c-output-model ./stories260K.gguf
+
+      - name: Upload stories260K reusable artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: stories260k-gguf
+          path: build/stories260K.gguf
+          if-no-files-found: error
+          retention-days: 7
+
+  test:
+    runs-on: ubuntu-latest
+    needs: prepare-stories260k-artifact
+    steps:
+      - name: Checkout project
+        uses: actions/checkout@v4
+
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          bundler-cache: true
+
+      - name: Checkout llama.cpp
+        uses: actions/checkout@v4
+        with:
+          repository: ggml-org/llama.cpp
+          path: llama.cpp
+
+      - name: Build llama.cpp (shared lib + tools)
+        run: |
+          cmake -S llama.cpp -B build -DBUILD_SHARED_LIBS=ON
+          cmake --build build --config Release -j "$(nproc)"
+          if [ -x build/bin/llama-cli ] && [ ! -x build/bin/llama-completion ]; then
+            ln -s llama-cli build/bin/llama-completion
+          fi
+
+      - name: Download stories260K artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: stories260k-gguf
+          path: artifacts
+
+      - name: Locate libllama
+        id: libllama
+        run: |
+          LIB_PATH=$(find build -type f -name 'libllama.so' | head -n 1)
+          if [ -z "$LIB_PATH" ]; then
+            echo "libllama.so not found" >&2
+            exit 1
+          fi
+          echo "path=$LIB_PATH" >> "$GITHUB_OUTPUT"
+
+      - name: Generate bindings from pinned llama.cpp release
+        run: bundle exec rake bindings:generate
+
+      - name: Run all tests (unit + integration)
+        env:
+          RUN_LLAMA_INTEGRATION: '1'
+          RUN_LLAMA_CHAT_INTEGRATION: '1'
+          RUN_STORIES260K_INTEGRATION: '1'
+          LLAMA_CPP_BUILD_DIR: ${{ github.workspace }}/build
+          LLAMA_CPP_LIB: ${{ steps.libllama.outputs.path }}
+          LLAMA_MODEL_PATH: ${{ github.workspace }}/artifacts/stories260K.gguf
+          STORIES260K_GGUF_PATH: ${{ github.workspace }}/artifacts/stories260K.gguf
+        run: bundle exec rake test
