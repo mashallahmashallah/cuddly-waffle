@@ -74,7 +74,7 @@ A workflow is provided at `.github/workflows/build-llama-cpp.yml`.
 
 - Trigger: **Actions → Build llama.cpp artifact with Docker Buildx → Run workflow**.
 - Inputs: `llama_ref` (llama.cpp ref) and optional `zendnn_ref` (external ZenDNN ref).
-- The workflow uses GHCR-backed Buildx cache (`ghcr.io/<owner>/<repo>/buildcache:llama-cpp`) to reuse layers across runs.
+- The workflow uses GitHub Actions-backed Buildx cache (`type=gha`, scope `llama-cpp`) to reuse layers across runs without requiring registry login.
 - Docker builds use `ccache` compiler launchers and a dedicated `ccache` image stage that captures cache files as a standalone layer target.
 - The workflow builds target `artifact`, extracts the filesystem, and uploads it as a GitHub Actions artifact.
 - Artifact names are normalized from `llama_ref` so refs with `/`, `:`, or spaces upload reliably.
