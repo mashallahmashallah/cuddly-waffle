@@ -55,3 +55,4 @@ A workflow is provided at `.github/workflows/build-llama-cpp.yml`.
 - Trigger: **Actions → Build llama.cpp artifact with Docker Buildx → Run workflow**.
 - Input `llama_ref`: tag/branch/SHA to build from `https://github.com/ggerganov/llama.cpp.git`.
 - The workflow builds this Dockerfile target `artifact`, extracts the filesystem, and uploads it as a GitHub Actions artifact.
+- Artifact names are normalized from `llama_ref` so refs with `/`, `:`, or spaces upload reliably.
