@@ -3,6 +3,16 @@ name: Build llama.cpp
 on:
   workflow_dispatch:
     inputs:
+      build_preset:
+        description: "Build preset target from docker-bake.hcl"
+        type: choice
+        options:
+          - artifact
+          - native-o3
+          - zen4-o3
+          - llama-zendnn-zen4
+        required: true
+        default: artifact
       llama_ref:
         description: "llama.cpp git ref (tag, branch, or commit SHA)"
         required: true
@@ -12,13 +22,13 @@ on:
         required: false
         default: "main"
       cmake_configure_args:
-        description: "Additional CMake configure args"
+        description: "Optional CMake configure args override (blank keeps preset defaults)"
         required: false
-        default: "-DCMAKE_BUILD_TYPE=Release"
+        default: ""
       cmake_build_args:
-        description: "Additional CMake build args"
+        description: "Optional CMake build args override (blank keeps preset defaults)"
         required: false
-        default: "--parallel"
+        default: ""
       export_path:
         description: "Path inside builder image to export"
         required: false
@@ -32,6 +42,9 @@ jobs:
       contents: read
 
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
@@ -40,28 +53,24 @@ jobs:
         run: |
           set -euo pipefail
           normalized_ref="$(printf '%s' "${{ inputs.llama_ref }}" | tr '/:@ ' '----' | tr -cd '[:alnum:]._-')"
-          printf 'artifact_name=%s\n' "llama-cpp-build-${normalized_ref}" >> "$GITHUB_OUTPUT"
+          printf 'artifact_name=%s\n' "llama-cpp-${{ inputs.build_preset }}-${normalized_ref}" >> "$GITHUB_OUTPUT"
 
       - name: Build llama.cpp artifact image
-        uses: docker/build-push-action@v6
+        uses: docker/bake-action@v6
         with:
-          # Use BuildKit's git context (remote ADD-like source fetch) instead of actions/checkout.
-          context: "{{defaultContext}}"
-          file: Dockerfile
-          target: artifact
-          outputs: type=local,dest=artifact-out
-          cache-from: |
-            type=gha,scope=llama-cpp
-          cache-to: |
-            type=gha,scope=llama-cpp,mode=max
-          build-args: |
-            GIT_REPO=https://github.com/ggerganov/llama.cpp.git
-            GIT_REF=${{ inputs.llama_ref }}
-            ENABLE_EXTERNAL_ZENDNN=true
-            ZENDNN_GIT_REF=${{ inputs.zendnn_ref }}
-            CMAKE_CONFIGURE_ARGS=${{ inputs.cmake_configure_args }}
-            CMAKE_BUILD_ARGS=${{ inputs.cmake_build_args }}
-            EXPORT_PATH=${{ inputs.export_path }}
+          files: |
+            ./docker-bake.hcl
+          targets: ${{ inputs.build_preset }}
+          set: |
+            *.args.GIT_REPO=https://github.com/ggerganov/llama.cpp.git
+            *.args.GIT_REF=${{ inputs.llama_ref }}
+            *.args.ZENDNN_GIT_REF=${{ inputs.zendnn_ref }}
+            *.args.EXPORT_PATH=${{ inputs.export_path }}
+            *.output=type=local,dest=artifact-out
+            *.cache-from=type=gha,scope=llama-cpp
+            *.cache-to=type=gha,scope=llama-cpp,mode=max
+            ${{ inputs.cmake_configure_args != '' && format('*.args.CMAKE_CONFIGURE_ARGS={0}', inputs.cmake_configure_args) || '' }}
+            ${{ inputs.cmake_build_args != '' && format('*.args.CMAKE_BUILD_ARGS={0}', inputs.cmake_build_args) || '' }}
 
       - name: Upload build output artifact
         uses: actions/upload-artifact@v4
