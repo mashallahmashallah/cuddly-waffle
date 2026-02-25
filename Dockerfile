@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-ARG BASE_IMAGE=gcc:15.3
+ARG BASE_IMAGE=gcc:15.2
 
 FROM ${BASE_IMAGE} AS builder
 SHELL ["/bin/bash", "-o", "pipefail", "-c"]
